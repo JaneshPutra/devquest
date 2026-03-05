@@ -7,7 +7,250 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// Add your models here as the project grows
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Phase {
+  CORE
+  FRONTEND
+  BACKEND
+}
+
+enum LessonType {
+  LESSON
+  BUILD_IT
+  CODE_REVIEW
+}
+
+enum ExerciseType {
+  MULTIPLE_CHOICE
+  FILL_BLANK
+  CODE_CHALLENGE
+  FIX_THE_BUG
+}
+
+enum Language {
+  HTML
+  CSS
+  JS
+  TYPESCRIPT
+  REACT
+  GIT
+  SQL
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum BadgeConditionType {
+  STREAK
+  XP
+  COURSE_COMPLETE
+  EXERCISE_COUNT
+}
+
+// ─────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  username       String   @unique
+  password       String
+  avatar         String?
+  total_xp       Int      @default(0)
+  current_streak Int      @default(0)
+  longest_streak Int      @default(0)
+  refreshToken   String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  // Relations
+  progress         UserProgress[]
+  exerciseAttempts UserExerciseAttempt[]
+  badges           UserBadge[]
+  streaks          UserStreak[]
+  weeklyChallenges UserWeeklyChallenge[]
+
+  @@map("users")
+}
+
+model Course {
+  id          String  @id @default(cuid())
+  title       String
+  slug        String  @unique
+  description String
+  icon        String?
+  color       String?
+  order       Int
+  phase       Phase
+
+  // Relations
+  modules Module[]
+
+  @@map("courses")
+}
+
+model Module {
+  id          String  @id @default(cuid())
+  course_id   String
+  title       String
+  slug        String  @unique
+  description String?
+  order       Int
+
+  // Relations
+  course  Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@map("modules")
+}
+
+model Lesson {
+  id        String     @id @default(cuid())
+  module_id String
+  title     String
+  slug      String     @unique
+  content   String     @db.Text
+  xp_reward Int        @default(10)
+  order     Int
+  type      LessonType @default(LESSON)
+
+  // Relations
+  module    Module         @relation(fields: [module_id], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+  progress  UserProgress[]
+
+  @@map("lessons")
+}
+
+model Exercise {
+  id             String       @id @default(cuid())
+  lesson_id      String
+  order          Int
+  xp_reward      Int          @default(5)
+  hint           String?
+  type           ExerciseType
+  question       String       @db.Text
+  options        Json?
+  correct_answer String       @db.Text
+  test_cases     Json?
+  language       Language?
+
+  // Relations
+  lesson           Lesson                @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+  attempts         UserExerciseAttempt[]
+  weeklyChallenges WeeklyChallenge[]
+
+  @@map("exercises")
+}
+
+model UserProgress {
+  id           String         @id @default(cuid())
+  user_id      String
+  lesson_id    String
+  status       ProgressStatus @default(NOT_STARTED)
+  xp_earned    Int            @default(0)
+  completed_at DateTime?
+
+  // Relations
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, lesson_id])
+  @@map("user_progress")
+}
+
+model UserExerciseAttempt {
+  id           String   @id @default(cuid())
+  user_id      String
+  exercise_id  String
+  is_correct   Boolean  @default(false)
+  answer_given String   @db.Text
+  attempted_at DateTime @default(now())
+
+  // Relations
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+
+  @@map("user_exercise_attempts")
+}
+
+model Badge {
+  id              String             @id @default(cuid())
+  name            String             @unique
+  description     String
+  icon            String
+  condition_type  BadgeConditionType
+  condition_value Int
+
+  // Relations
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  user_id   String
+  badge_id  String
+  earned_at DateTime @default(now())
+
+  // Relations
+  user  User  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badge_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, badge_id])
+  @@map("user_badges")
+}
+
+model UserStreak {
+  id         String   @id @default(cuid())
+  user_id    String
+  date       DateTime @db.Date
+  created_at DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, date])
+  @@map("user_streaks")
+}
+
+model WeeklyChallenge {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @db.Text
+  start_date  DateTime
+  end_date    DateTime
+  exercise_id String
+
+  // Relations
+  exercise       Exercise              @relation(fields: [exercise_id], references: [id])
+  userChallenges UserWeeklyChallenge[]
+
+  @@map("weekly_challenges")
+}
+
+model UserWeeklyChallenge {
+  id             String    @id @default(cuid())
+  user_id        String
+  challenge_id   String
+  submitted_code String?   @db.Text
+  score          Int?
+  submitted_at   DateTime?
+
+  // Relations
+  user      User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  challenge WeeklyChallenge @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, challenge_id])
+  @@map("user_weekly_challenges")
+}
