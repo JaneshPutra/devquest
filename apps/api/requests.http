@@ -1,0 +1,117 @@
+### DevQuest API — Auth Endpoints
+### Install VS Code extension: REST Client (humao.rest-client)
+### Jalankan: npm run dev di apps/api
+
+@baseUrl = http://localhost:3001/api
+@contentType = application/json
+
+# Simpan token setelah login/register untuk dipakai di endpoint protected
+@accessToken = PASTE_ACCESS_TOKEN_DISINI
+@refreshToken = PASTE_REFRESH_TOKEN_DISINI
+
+
+### ─────────────────────────────────────────────
+### 1. REGISTER
+### ─────────────────────────────────────────────
+
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "budi@devquest.id",
+  "username": "budi_dev",
+  "password": "password123"
+}
+
+###
+
+### ─────────────────────────────────────────────
+### 2. LOGIN
+### ─────────────────────────────────────────────
+
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "budi@devquest.id",
+  "password": "password123"
+}
+
+###
+
+### ─────────────────────────────────────────────
+### 3. REFRESH TOKEN
+### ─────────────────────────────────────────────
+
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refresh_token": "{{refreshToken}}"
+}
+
+###
+
+### ─────────────────────────────────────────────
+### 4. GET PROFILE (Protected)
+### ─────────────────────────────────────────────
+
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{accessToken}}
+
+###
+
+### ─────────────────────────────────────────────
+### 5. LOGOUT (Protected)
+### ─────────────────────────────────────────────
+
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{accessToken}}
+
+###
+
+### ─────────────────────────────────────────────
+### TEST CASES: Error Scenarios
+### ─────────────────────────────────────────────
+
+### Duplicate email → 409 Conflict
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "budi@devquest.id",
+  "username": "user_lain",
+  "password": "password123"
+}
+
+###
+
+### Wrong password → 401 Unauthorized
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "budi@devquest.id",
+  "password": "salah_password"
+}
+
+###
+
+### Invalid body → 400 Bad Request
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "bukan-email",
+  "username": "ab",
+  "password": "short"
+}
+
+###
+
+### No token → 401 Unauthorized
+GET {{baseUrl}}/auth/me
+
+###
